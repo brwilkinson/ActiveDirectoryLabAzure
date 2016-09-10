@@ -41,6 +41,12 @@ Node $AllNodes.NodeName
         DriveLetter = 'F'
     }
 
+	xPendingReboot RebootForDNSUpdate
+    {
+        Name      = 'RebootForDNS'
+        DependsOn = '[xDisk]FDrive'
+    }
+
     $parts = $DomainName -split '\.'
     $Netbios = $parts[0]
     $parent = $parts[-2] + '.' + $parts[-1]

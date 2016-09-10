@@ -1208,7 +1208,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2015-01-01",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('USDC1vmName'), '/extensions/vmdscUSDC1')]"
+        "[concat('Microsoft.Compute/virtualMachines/', variables('DC1vmName'), '/extensions/vmdscDC1')]"
       ],
       "properties": {
         "mode": "Incremental",
