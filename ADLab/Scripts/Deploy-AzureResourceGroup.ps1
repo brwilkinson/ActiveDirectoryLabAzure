@@ -4,15 +4,18 @@
 
 Param(
     [string] [Parameter(Mandatory=$true)] $ResourceGroupLocation,
-    [string] $ResourceGroupName = 'ActiveDirectoryLabAzure',
+    [string] $ResourceGroupName = 'ADLab-50',
     [switch] $UploadArtifacts,
     [string] $StorageAccountName,
     [string] $StorageContainerName = $ResourceGroupName.ToLowerInvariant() + '-stageartifacts',
     [string] $TemplateFile = '..\Templates\azuredeploy.json',
     [string] $TemplateParametersFile = '..\Templates\azuredeploy.parameters.json',
     [string] $ArtifactStagingDirectory = '..\bin\Debug\staging',
-    [string] $DSCSourceFolder = '..\DSC'
+    [string] $DSCSourceFolder = '..\DSC',
+	[string] $RDPFileDirectory = "$home\OneDrive\RDP\Azure"
 )
+
+Get-Date -OutVariable Start | Select DateTime
 
 Import-Module Azure -ErrorAction SilentlyContinue
 
@@ -86,7 +89,16 @@ if ($UploadArtifacts) {
     $ArtifactsLocationSasToken = $OptionalParameters[$ArtifactsLocationSasTokenName]
     if ($ArtifactsLocationSasToken -eq $null) {
         # Create a SAS token for the storage container - this gives temporary read-only access to the container
-        $ArtifactsLocationSasToken = New-AzureStorageContainerSASToken -Container $StorageContainerName -Context $StorageAccountContext -Permission r -ExpiryTime (Get-Date).AddHours(4)
+
+		$StorageTokenParams = @{
+			Container  = $StorageContainerName 
+			Context    = $StorageAccountContext 
+			Permission = 'r'
+			StartTime  = (Get-Date).ToUniversalTime().AddHours(-4) # allow for different timezones and offsets
+			ExpiryTime = (Get-Date).ToUniversalTime().AddHours(12)
+			}
+		$ArtifactsLocationSasToken = New-AzureStorageContainerSASToken @StorageTokenParams
+
         $ArtifactsLocationSasToken = ConvertTo-SecureString $ArtifactsLocationSasToken -AsPlainText -Force
         $OptionalParameters[$ArtifactsLocationSasTokenName] = $ArtifactsLocationSasToken
     }
@@ -100,4 +112,16 @@ New-AzureRmResourceGroupDeployment -Name ((Get-ChildItem $TemplateFile).BaseName
                                    -TemplateFile $TemplateFile `
                                    -TemplateParameterFile $TemplateParametersFile `
                                    @OptionalParameters `
-                                   -Force -Verbose
+                                   -Force -Verbose -OutVariable Deployment
+
+$Deployment | select Name, Value
+
+# Download the RDP files from the deployment to a chosen directory 
+if (Test-Path -Path $RDPFileDirectory)
+{
+	Get-AzureRmVM -ResourceGroupName $ResourceGroupName | Foreach {
+		Get-AzureRmRemoteDesktopFile -LocalPath ($RDPFileDirectory + '/' + $_.Name + '.RDP') -ResourceGroupName $ResourceGroupName -Name $_.Name
+	}
+}
+
+New-TimeSpan -Start $Start[0] -End (Get-Date) | Select TotalHours,TotalMinutes,TotalSeconds

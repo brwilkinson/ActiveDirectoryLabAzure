@@ -1,0 +1,90 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "Deployment": {
+      "type": "string"
+    },
+    "DNSServers": {
+      "type": "array",
+      "defaultValue": [ "10.0.0.10", "10.0.0.11" ]
+    },
+    "vNet": {
+      "type": "string",
+      "defaultValue": "-a",
+      "allowedValues": [ "-a", "-b" ]
+    }
+  },
+  "variables": {
+    // Network
+
+    "vNetPrefix-a": "10.0.0.0/16",
+    "vNetPrefix-b": "10.1.0.0/16",
+
+    // 3 Subnets - use the same subnet names in both VNets (a and b)
+    "snFrontEnd-ab": "[concat('sn', parameters('Deployment'),'-FE')]",
+    "snMidTier-ab": "[concat('sn', parameters('Deployment'),'-MT')]",
+    "snBackEnd-ab": "[concat('sn', parameters('Deployment'),'-BE')]",
+
+    // Networka (3 subnets for vneta)
+    "snFrontEnd-a-Prefix": "10.0.0.0/24",
+    "snMidTier-a-Prefix": "10.0.1.0/24",
+    "snBackEnd-a-Prefix": "10.0.2.0/24",
+
+    // Networkb (3 subnets for vnetb)
+    "snFrontEnd-b-Prefix": "10.1.0.0/24",
+    "snMidTier-b-Prefix": "10.1.1.0/24",
+    "snBackEnd-b-Prefix": "10.1.2.0/24",
+
+    "VnetID": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',parameters('Deployment'),parameters('vNet')))]",
+    "SubnetRef": "[concat(variables('VnetID'), '/subnets/', variables('snFrontEnd-ab'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat('vn',parameters('Deployment'),parameters('vNet'))]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "vNeta"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables(concat('vNetPrefix',parameters('vNet')))]"
+          ]
+        },
+        "dhcpOptions": {
+          "dnsServers": [
+            "[parameters('DNSServers')[0]]",
+            "[parameters('DNSServers')[1]]",
+            "[parameters('DNSServers')[2]]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('snFrontEnd-ab')]",
+            "properties": {
+              "addressPrefix": "[variables(concat('snFrontEnd', parameters('vNet') ,'-Prefix'))]"
+            }
+          },
+          {
+            "name": "[variables('snMidTier-ab')]",
+            "properties": {
+              "addressPrefix": "[variables(concat('snMidTier', parameters('vNet'),'-Prefix'))]"
+            }
+          },
+          {
+            "name": "[variables('snBackEnd-ab')]",
+            "properties": {
+              "addressPrefix": "[variables(concat('snBackEnd', parameters('vNet'),'-Prefix'))]"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+
+

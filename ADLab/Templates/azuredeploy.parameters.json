@@ -2,5 +2,43 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
+        "DeploymentID": {
+            "value": "53"
+        },
+        "Environment": {
+            "value": "Dev"
+        },
+        "vmDomainName": {
+            "value": "Contoso.com"
+        },
+        "numberOfInstancesMemberServer": {
+            "value": 1
+        },
+        "vmAdminPassword": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/b8f402aa-20f7-4888-b45c-3cf086dad9c3/resourceGroups/rgGlobal/providers/Microsoft.KeyVault/vaults/kvContoso"
+                },
+                "secretName": "ContosoAdminBRW"
+            }
+        },
+        "vmAdminUserName": {
+            "value": "BRW"
+        },
+      "vaultName": {
+        "value": "kvContoso"
+      },
+      "vaultResourceGroup": {
+        "value": "rgGlobal"
+      },
+      "certificateUrl": {
+        "value": "https://kvcontoso.vault.azure.net:443/secrets/contosowildcard/e5c714c2d2ad4896965b2afa30ff9974"
+      },
+        "Prefix": {
+            "value": "BRW"
+        },
+        "numberOfInstancesMidTierServer": {
+            "value": 1
+        }
     }
 }
