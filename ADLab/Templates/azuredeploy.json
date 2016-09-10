@@ -126,7 +126,7 @@
 
     // Network -------------------------------------------------------------------------------------
     "vNetPrefix-a": "10.0.0.0/16",
-    "vNetPrefix-b": "10.1.0.0/16",
+    "vNetPrefix-b": "10.10.0.0/16",
 
     // 3 Subnets - use the same subnet names in both VNets (a and b)
     "snFrontEnd-ab": "[concat('sn', variables('Deployment'),'-FE')]",
@@ -143,9 +143,9 @@
     "snBackEnd-a-Prefix": "10.0.2.0/24",
 
     // Networkb (3 subnets for vnetb)
-    "snFrontEnd-b-Prefix": "10.1.0.0/24",
-    "snMidTier-b-Prefix": "10.1.1.0/24",
-    "snBackEnd-b-Prefix": "10.1.2.0/24",
+    "snFrontEnd-b-Prefix": "10.10.0.0/24",
+    "snMidTier-b-Prefix": "10.10.1.0/24",
+    "snBackEnd-b-Prefix": "10.10.2.0/24",
 
     // Full references to the subnets in vnet a
     "SubnetFEa": "[concat(variables('VnetIDa'), '/subnets/', variables('snFrontEnd-ab'))]",
@@ -192,7 +192,7 @@
     "USDC1vmNicName": "NIC_vmUSDC1",
     "USDC1PublicDNSName": "[toLower(concat(variables('Domain'),variables('USDC1vmName')))]",
     "USDC1PublicIPName": "PublicIP_vmUSDC1",
-    "USDC1PrivateIPAddress": "10.1.0.10",
+    "USDC1PrivateIPAddress": "10.10.0.10",
     "USDC1DSCConfFunction": "vmdscUSDC1Configuration.ps1\\Main",
 
     // MSX
@@ -244,7 +244,28 @@
             }
           }
         ]
-      }
+      },
+      "resources": [
+        {
+          "apiVersion": "2016-06-01",
+          "type": "virtualNetworkPeerings",
+          "name": "VNetaLinkToVNetb",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]"
+          ],
+          "location": "[resourceGroup().location]",
+          "properties": {
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": false,
+            "allowGatewayTransit": false,
+            "useRemoteGateways": false,
+            "remoteVirtualNetwork": {
+              "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]"
+            }
+          }
+        }
+      ]
+
     },
     {
       "name": "[concat('vn',Variables('Deployment'),'-b')]",
@@ -288,43 +309,27 @@
             }
           }
         ]
-      }
-    },
-    {
-      "apiVersion": "2016-06-01",
-      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]"
-      ],
-      "name": "VNeta/LinkToVNetb",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "allowVirtualNetworkAccess": true,
-        "allowForwardedTraffic": false,
-        "allowGatewayTransit": false,
-        "useRemoteGateways": false,
-        "remoteVirtualNetwork": {
-          "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]"
+      },
+      "resources": [
+        {
+          "apiVersion": "2016-06-01",
+          "type": "virtualNetworkPeerings",
+          "name": "VNetbLinkToVNeta",
+          "dependsOn": [
+            "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]"
+          ],
+          "location": "[resourceGroup().location]",
+          "properties": {
+            "allowVirtualNetworkAccess": true,
+            "allowForwardedTraffic": false,
+            "allowGatewayTransit": false,
+            "useRemoteGateways": false,
+            "remoteVirtualNetwork": {
+              "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]"
+            }
+          }
         }
-      }
-    },
-    {
-      "apiVersion": "2016-06-01",
-      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]" 
-      ],
-      "name": "VNetb/LinkToVNeta",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "allowVirtualNetworkAccess": true,
-        "allowForwardedTraffic": false,
-        "allowGatewayTransit": false,
-        "useRemoteGateways": false,
-        "remoteVirtualNetwork": {
-          "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]"
-        }
-      }
+      ]
     },
     {
       "name": "[variables('saName')]",
