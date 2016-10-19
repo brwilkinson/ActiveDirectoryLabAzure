@@ -1,2 +1,0 @@
-# xDSCUtils
-Utilities for DSC

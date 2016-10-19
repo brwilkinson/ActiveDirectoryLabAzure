@@ -17,6 +17,7 @@ Param(
 )
 
 
+$PWD
 Get-Date -OutVariable Start | Select DateTime
 
 Import-Module Azure -ErrorAction SilentlyContinue
@@ -44,6 +45,9 @@ if ($UploadArtifacts) {
     $ArtifactStagingDirectory = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $ArtifactStagingDirectory))
     $DSCSourceFolder = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $DSCSourceFolder))
 
+	Write-Warning -Message "ArtifactStagingDirectory is: $ArtifactStagingDirectory"
+	Write-Warning -Message "DSCSourceFolder is:          $DSCSourceFolder"
+
     Set-Variable ArtifactsLocationName '_artifactsLocation' -Option ReadOnly -Force
     Set-Variable ArtifactsLocationSasTokenName '_artifactsLocationSasToken' -Option ReadOnly -Force
 
@@ -70,7 +74,7 @@ if ($UploadArtifacts) {
     }
 
     # Create DSC configuration archive
-    if (Test-Path $DSCSourceFolder) {
+    if (Test-Path -Path $DSCSourceFolder ) {
         $DSCSourceFilePaths = @(Get-ChildItem $DSCSourceFolder -File -Filter "*.ps1" | ForEach-Object -Process {$_.FullName})
         foreach ($DSCSourceFilePath in $DSCSourceFilePaths) {
             $DSCArchiveFilePath = $DSCSourceFilePath.Substring(0, $DSCSourceFilePath.Length - 4) + ".zip"

@@ -7,11 +7,11 @@ Param (
 		[Int]$RetryIntervalSec = 120
 		)
 
-Import-DscResource -ModuleName PSDesiredStateConfiguration
-Import-DscResource -ModuleName xComputerManagement
-Import-DscResource -ModuleName xActiveDirectory
-Import-DscResource -ModuleName xStorage
-Import-DscResource -ModuleName xPendingReboot
+Import-DscResource -ModuleName xComputerManagement -ModuleVersion 1.7.0.0
+Import-DscResource -ModuleName PSDesiredStateConfiguration -ModuleVersion 1.1
+Import-DscResource -ModuleName xActiveDirectory  -ModuleVersion 2.12.0.0
+Import-DscResource -ModuleName xStorage -ModuleVersion 2.4.0.0
+Import-DscResource -ModuleName xPendingReboot -ModuleVersion 0.3.0.0
 
 Node $AllNodes.NodeName
 {
