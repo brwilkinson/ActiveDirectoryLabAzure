@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "DeploymentID": {
-            "value": "55"
+            "value": "10"
         },
         "Environment": {
             "value": "Dev"
@@ -17,28 +17,25 @@
         "vmAdminPassword": {
             "reference": {
                 "keyVault": {
-                    "id": "/subscriptions/b8f402aa-20f7-4888-b45c-3cf086dad9c3/resourceGroups/rgGlobal/providers/Microsoft.KeyVault/vaults/kvContoso"
+                    "id": "/subscriptions/b8f402aa-20f7-4888-b45c-3cf086dad9c3/resourceGroups/rgGlobal/providers/Microsoft.KeyVault/vaults/kvContosoEastUS2"
                 },
-                "secretName": "ContosoAdminBRW"
+                "secretName": "BRW"
             }
         },
         "vmAdminUserName": {
             "value": "BRW"
         },
-      "vaultName": {
-        "value": "kvContoso"
-      },
       "vaultResourceGroup": {
         "value": "rgGlobal"
       },
-      "certificateUrl": {
-        "value": "https://kvcontoso.vault.azure.net:443/secrets/contosowildcard/e5c714c2d2ad4896965b2afa30ff9974"
-      },
         "Prefix": {
-            "value": "BRW"
+            "value": "ADLab"
         },
         "numberOfInstancesMidTierServer": {
             "value": 1
+        },
+        "certificateUrl": {
+            "value": "https://kvcontosoeastus2.vault.azure.net/secrets/ContosoWildcard/e3b3f88a088b4eadafd4fa6f924877f5"
         }
     }
 }

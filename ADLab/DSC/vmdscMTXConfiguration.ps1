@@ -5,7 +5,7 @@ Param (
 		[PSCredential]$AdminCreds,
 		[Int]$RetryCount = 20,
 		[Int]$RetryIntervalSec = 120,
-        $ThumbPrint = '80FC80D83777B9B7E1E550797FC79E208CA4AE85'
+        $ThumbPrint = 'D619F4B333D657325C976F97B7EF5977E740E791'
 		)
 
 Import-DscResource -ModuleName PSDesiredStateConfiguration
@@ -66,6 +66,7 @@ Node $AllNodes.NodeName
         DependsOn = '[xComputer]DomainJoin'
     }
 
+<#
     # base install above - custom role install
     # TODO: Look at putting this in a composite resource
     WindowsFeature BasewebRolesMgmt
@@ -166,7 +167,7 @@ Node $AllNodes.NodeName
             )
     }
 
-
+	#>
 
 }
 }#Main

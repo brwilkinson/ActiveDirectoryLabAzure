@@ -4,26 +4,36 @@
 
 Param(
     [string] [Parameter(Mandatory=$true)] $ResourceGroupLocation,
-    [string] $ResourceGroupName = 'ADLab-50',
+    [string] $ResourceGroupName = 'rgADLab',
     [switch] $UploadArtifacts,
     [string] $StorageAccountName,
     [string] $StorageContainerName = $ResourceGroupName.ToLowerInvariant() + '-stageartifacts',
-    [string] $TemplateFile = '..\Templates\azuredeploy.json',
-    [string] $TemplateParametersFile = '..\Templates\azuredeploy.parameters.json',
-    [string] $ArtifactStagingDirectory = '..\bin\Debug\staging',
-    [string] $DSCSourceFolder = '..\DSC',
+    [string] $TemplateFile = 'Templates\azuredeploy.json',
+    [string] $TemplateParametersFile = 'Templates\azuredeploy.parameters.json',
+    [string] $ArtifactStagingDirectory = '.',
+    [string] $DSCSourceFolder = 'DSC',
+    [switch] $ValidateOnly,
 	[string] $RDPFileDirectory = "$home\OneDrive\RDP\Azure"
 )
+
 
 Get-Date -OutVariable Start | Select DateTime
 
 Import-Module Azure -ErrorAction SilentlyContinue
 
 try {
-    [Microsoft.Azure.Common.Authentication.AzureSession]::ClientFactory.AddUserAgent("VSAzureTools-$UI$($host.name)".replace(" ","_"), "2.9")
+    [Microsoft.Azure.Common.Authentication.AzureSession]::ClientFactory.AddUserAgent("VSAzureTools-$UI$($host.name)".replace(" ","_"), "2.9.5")
 } catch { }
 
 Set-StrictMode -Version 3
+
+function Format-ValidationOutput {
+    param ($ValidationOutput, [int] $Depth = 0)
+    Set-StrictMode -Off
+    return @($ValidationOutput | Where-Object { $_ -ne $null } | 
+		ForEach-Object { @("  " * $Depth + $_.Code + ": " + $_.Message) + 
+			@(Format-ValidationOutput @($_.Details) ($Depth + 1)) })
+}
 
 $OptionalParameters = New-Object -TypeName Hashtable
 $TemplateFile = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $TemplateFile))
@@ -61,10 +71,26 @@ if ($UploadArtifacts) {
 
     # Create DSC configuration archive
     if (Test-Path $DSCSourceFolder) {
-        Add-Type -Assembly System.IO.Compression.FileSystem
-        $ArchiveFile = Join-Path $ArtifactStagingDirectory "dsc.zip"
-        Remove-Item -Path $ArchiveFile -ErrorAction SilentlyContinue
-        [System.IO.Compression.ZipFile]::CreateFromDirectory($DSCSourceFolder, $ArchiveFile)
+        $DSCSourceFilePaths = @(Get-ChildItem $DSCSourceFolder -File -Filter "*.ps1" | ForEach-Object -Process {$_.FullName})
+        foreach ($DSCSourceFilePath in $DSCSourceFilePaths) {
+            $DSCArchiveFilePath = $DSCSourceFilePath.Substring(0, $DSCSourceFilePath.Length - 4) + ".zip"
+            Publish-AzureRmVMDscConfiguration $DSCSourceFilePath -OutputArchivePath $DSCArchiveFilePath -Force -Verbose
+        }
+    }
+
+    # Create a storage account name if none was provided
+    if($StorageAccountName -eq "") {
+        $subscriptionId = ((Get-AzureRmContext).Subscription.SubscriptionId).Replace('-', '').substring(0, 19)
+        $StorageAccountName = "stage$subscriptionId"
+    }
+
+    $StorageAccount = (Get-AzureRmStorageAccount | Where-Object{$_.StorageAccountName -eq $StorageAccountName})
+
+    # Create the storage account if it doesn't already exist
+    if($StorageAccount -eq $null){
+        $StorageResourceGroupName = "ARM_Deploy_Staging"
+        New-AzureRmResourceGroup -Location "$ResourceGroupLocation" -Name $StorageResourceGroupName -Force
+        $StorageAccount = New-AzureRmStorageAccount -StorageAccountName $StorageAccountName -Type 'Standard_LRS' -ResourceGroupName $StorageResourceGroupName -Location "$ResourceGroupLocation"
     }
 
     $StorageAccountContext = (Get-AzureRmStorageAccount | Where-Object{$_.StorageAccountName -eq $StorageAccountName}).Context
@@ -82,37 +108,45 @@ if ($UploadArtifacts) {
     $ArtifactFilePaths = Get-ChildItem $ArtifactStagingDirectory -Recurse -File | ForEach-Object -Process {$_.FullName}
     foreach ($SourcePath in $ArtifactFilePaths) {
         $BlobName = $SourcePath.Substring($ArtifactStagingDirectory.length + 1)
-        Set-AzureStorageBlobContent -File $SourcePath -Blob $BlobName -Container $StorageContainerName -Context $StorageAccountContext -Force
+        Set-AzureStorageBlobContent -File $SourcePath -Blob $BlobName -Container $StorageContainerName -Context $StorageAccountContext -Force -ErrorAction Stop
     }
 
     # Generate the value for artifacts location SAS token if it is not provided in the parameter file
     $ArtifactsLocationSasToken = $OptionalParameters[$ArtifactsLocationSasTokenName]
     if ($ArtifactsLocationSasToken -eq $null) {
         # Create a SAS token for the storage container - this gives temporary read-only access to the container
-
-		$StorageTokenParams = @{
-			Container  = $StorageContainerName 
-			Context    = $StorageAccountContext 
-			Permission = 'r'
-			StartTime  = (Get-Date).ToUniversalTime().AddHours(-4) # allow for different timezones and offsets
-			ExpiryTime = (Get-Date).ToUniversalTime().AddHours(12)
-			}
-		$ArtifactsLocationSasToken = New-AzureStorageContainerSASToken @StorageTokenParams
-
+        $ArtifactsLocationSasToken = New-AzureStorageContainerSASToken -Container $StorageContainerName -Context $StorageAccountContext -Permission r -ExpiryTime (Get-Date).AddHours(4)
         $ArtifactsLocationSasToken = ConvertTo-SecureString $ArtifactsLocationSasToken -AsPlainText -Force
         $OptionalParameters[$ArtifactsLocationSasTokenName] = $ArtifactsLocationSasToken
     }
 }
 
 # Create or update the resource group using the specified template file and template parameters file
-New-AzureRmResourceGroup -Name $ResourceGroupName -Location $ResourceGroupLocation -Verbose -Force -ErrorAction Stop 
+New-AzureRmResourceGroup -Name $ResourceGroupName -Location $ResourceGroupLocation -Verbose -Force -ErrorAction Stop
 
-New-AzureRmResourceGroupDeployment -Name ((Get-ChildItem $TemplateFile).BaseName + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')) `
-                                   -ResourceGroupName $ResourceGroupName `
-                                   -TemplateFile $TemplateFile `
-                                   -TemplateParameterFile $TemplateParametersFile `
-                                   @OptionalParameters `
-                                   -Force -Verbose -OutVariable Deployment
+$ErrorMessages = @()
+if ($ValidateOnly) {
+    $ErrorMessages = Format-ValidationOutput (Test-AzureRmResourceGroupDeployment -ResourceGroupName $ResourceGroupName `
+                                                                                  -TemplateFile $TemplateFile `
+                                                                                  -TemplateParameterFile $TemplateParametersFile `
+                                                                                  @OptionalParameters `
+                                                                                  -Verbose)
+}
+else {
+    New-AzureRmResourceGroupDeployment -Name ((Get-ChildItem $TemplateFile).BaseName + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')) `
+                                       -ResourceGroupName $ResourceGroupName `
+                                       -TemplateFile $TemplateFile `
+                                       -TemplateParameterFile $TemplateParametersFile `
+                                       @OptionalParameters `
+                                       -Force -Verbose `
+                                       -ErrorVariable ErrorMessages -OutVariable Deployment
+    $ErrorMessages = $ErrorMessages | ForEach-Object { $_.Exception.Message.TrimEnd("`r`n") }
+}
+if ($ErrorMessages)
+{
+    "", ("{0} returned the following errors:" -f ("Template deployment", "Validation")[[bool]$ValidateOnly]), @($ErrorMessages) | ForEach-Object { Write-Output $_ }
+}
+
 
 $Deployment | select Name, Value
 

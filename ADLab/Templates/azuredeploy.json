@@ -47,10 +47,10 @@
       "type": "string",
       "defaultValue": "Contoso.com",
       "allowedValues": [
-        "Contoso.com",
-        "AlpineSkiHouse.com",
-        "Fabrikam.com",
-        "TreyResearch.net"
+        "Contoso.com"
+        //"AlpineSkiHouse.com",
+        //"Fabrikam.com",
+        //"TreyResearch.net"
       ]
     },
     "vmWindowsOSVersion": {
@@ -93,13 +93,6 @@
         "description": "Auto-generated token to access artifactsLocation"
       }
     },
-    "vaultName": {
-      "type": "string",
-      "defaultValue": "kvContoso",
-      "metadata": {
-        "description": "Name of the KeyVault"
-      }
-    },
     "vaultResourceGroup": {
       "type": "string",
       "defaultValue": "rgGlobal",
@@ -108,11 +101,7 @@
       }
     },
     "certificateUrl": {
-      "type": "string",
-      "defaultValue": "https://kvcontoso.vault.azure.net:443/secrets/contosowildcard",
-      "metadata": {
-        "description": "Url of the certificate with version in KeyVault e.g. https://testault.vault.azure.net/secrets/testcert"
-      }
+      "type": "string"
     }
   },
   "variables": {
@@ -121,12 +110,13 @@
     //"rgName": "[concat('rg', variables('Deployment'))]",
     "saName": "[toLower(concat('sa', variables('Deployment')))]",
 
+    "vaultName": "[concat('kvcontoso', resourceGroup().location)]",
+
     // SubDeployments
-    "dpSetvNetDNS": "https://raw.githubusercontent.com/brwilkinson/Azure/master/dpSetvNetDNS2.json",
+    "dpSetvNetDNS": "https://raw.githubusercontent.com/brwilkinson/Azure/master/dpSetvNetDNS.json",
 
     // Network -------------------------------------------------------------------------------------
     "vNetPrefix-a": "10.0.0.0/16",
-    "vNetPrefix-b": "10.10.0.0/16",
 
     // 3 Subnets - use the same subnet names in both VNets (a and b)
     "snFrontEnd-ab": "[concat('sn', variables('Deployment'),'-FE')]",
@@ -135,27 +125,16 @@
 
     // 2 VNets (for different domains and security boundaries if NSG's are used)
     "VnetIDa": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]",
-    "VnetIDb": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]",
 
     // Networka (3 subnets for vneta)
     "snFrontEnd-a-Prefix": "10.0.0.0/24",
     "snMidTier-a-Prefix": "10.0.1.0/24",
     "snBackEnd-a-Prefix": "10.0.2.0/24",
 
-    // Networkb (3 subnets for vnetb)
-    "snFrontEnd-b-Prefix": "10.10.0.0/24",
-    "snMidTier-b-Prefix": "10.10.1.0/24",
-    "snBackEnd-b-Prefix": "10.10.2.0/24",
-
     // Full references to the subnets in vnet a
     "SubnetFEa": "[concat(variables('VnetIDa'), '/subnets/', variables('snFrontEnd-ab'))]",
     "SubnetMTa": "[concat(variables('VnetIDa'), '/subnets/', variables('snMidTier-ab'))]",
     "SubnetBEa": "[concat(variables('VnetIDa'), '/subnets/', variables('snBackEnd-ab'))]",
-
-    // Full references to the subnets in vnet b
-    "SubnetFEb": "[concat(variables('VnetIDb'), '/subnets/', variables('snFrontEnd-ab'))]",
-    "SubnetMTb": "[concat(variables('VnetIDb'), '/subnets/', variables('snMidTier-ab'))]",
-    "SubnetBEb": "[concat(variables('VnetIDb'), '/subnets/', variables('snBackEnd-ab'))]",
 
     // VM Global  -------------------------------------------------------------------------------------
     "vmSize": "Standard_D1",
@@ -192,7 +171,7 @@
     "USDC1vmNicName": "NIC_vmUSDC1",
     "USDC1PublicDNSName": "[toLower(concat(variables('Domain'),variables('USDC1vmName')))]",
     "USDC1PublicIPName": "PublicIP_vmUSDC1",
-    "USDC1PrivateIPAddress": "10.10.0.10",
+    "USDC1PrivateIPAddress": "10.0.0.12",
     "USDC1DSCConfFunction": "vmdscUSDC1Configuration.ps1\\Main",
 
     // MSX
@@ -244,92 +223,7 @@
             }
           }
         ]
-      },
-      "resources": [
-        {
-          "apiVersion": "2016-06-01",
-          "type": "virtualNetworkPeerings",
-          "name": "VNetaLinkToVNetb",
-          "dependsOn": [
-            "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]"
-          ],
-          "location": "[resourceGroup().location]",
-          "properties": {
-            "allowVirtualNetworkAccess": true,
-            "allowForwardedTraffic": false,
-            "allowGatewayTransit": false,
-            "useRemoteGateways": false,
-            "remoteVirtualNetwork": {
-              "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]"
-            }
-          }
-        }
-      ]
-
-    },
-    {
-      "name": "[concat('vn',Variables('Deployment'),'-b')]",
-      "type": "Microsoft.Network/virtualNetworks",
-      "location": "[resourceGroup().location]",
-      "apiVersion": "2015-06-15",
-      "dependsOn": [],
-      "tags": {
-        "displayName": "vNetb"
-      },
-      "properties": {
-        "addressSpace": {
-          "addressPrefixes": [
-            "[variables('vNetPrefix-b')]"
-          ]
-        },
-        "dhcpOptions": {
-          "dnsServers": [
-            "[variables('USDC1PrivateIPAddress')]",
-            //"[variables('USDC2PrivateIPAddress')]",
-            "8.8.8.8"
-          ]
-        },
-        "subnets": [
-          {
-            "name": "[variables('snFrontEnd-ab')]",
-            "properties": {
-              "addressPrefix": "[variables('snFrontEnd-b-Prefix')]"
-            }
-          },
-          {
-            "name": "[variables('snMidTier-ab')]",
-            "properties": {
-              "addressPrefix": "[variables('snMidTier-b-Prefix')]"
-            }
-          },
-          {
-            "name": "[variables('snBackEnd-ab')]",
-            "properties": {
-              "addressPrefix": "[variables('snBackEnd-b-Prefix')]"
-            }
-          }
-        ]
-      },
-      "resources": [
-        {
-          "apiVersion": "2016-06-01",
-          "type": "virtualNetworkPeerings",
-          "name": "VNetbLinkToVNeta",
-          "dependsOn": [
-            "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-b'))]"
-          ],
-          "location": "[resourceGroup().location]",
-          "properties": {
-            "allowVirtualNetworkAccess": true,
-            "allowForwardedTraffic": false,
-            "allowGatewayTransit": false,
-            "useRemoteGateways": false,
-            "remoteVirtualNetwork": {
-              "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',Variables('Deployment'),'-a'))]"
-            }
-          }
-        }
-      ]
+      }
     },
     {
       "name": "[variables('saName')]",
@@ -411,12 +305,19 @@
       "location": "[resourceGroup().location]",
       "apiVersion": "2015-06-15",
       "dependsOn": [
-        "[concat('Microsoft.Network/virtualNetworks/', concat('vn',Variables('Deployment'),'-b'))]"
+        "[concat('Microsoft.Network/virtualNetworks/', concat('vn',Variables('Deployment'),'-a'))]"
       ],
       "tags": {
         "displayName": "vmUSDC1_NIC"
       },
       "properties": {
+        "dnsSettings": {
+          "dnsServers": [
+            "[variables('DC1PrivateIPAddress')]",
+            //"[variables('USDC1PrivateIPAddress')]",
+            "8.8.8.8"
+          ]
+        },
         "ipConfigurations": [
           {
             "name": "ipconfig1",
@@ -424,7 +325,7 @@
               "privateIPAllocationMethod": "Static",
               "privateIPAddress": "[variables('USDC1PrivateIPAddress')]",
               "subnet": {
-                "id": "[variables('SubnetFEb')]"
+                "id": "[variables('SubnetFEa')]"
               },
               "publicIPAddress": {
                 "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('USDC1PublicIPName'))]"
@@ -525,7 +426,28 @@
         "osProfile": {
           "computerName": "DC1",
           "adminUsername": "[parameters('vmAdminUsername')]",
-          "adminPassword": "[parameters('vmAdminPassword')]"
+          "adminPassword": "[parameters('vmAdminPassword')]",
+          "secrets": [
+            {
+              "sourceVault": {
+                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', variables('vaultName'))]"
+              },
+              "vaultCertificates": [
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "My"
+                },
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "Root"
+                },
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "CA"
+                }
+              ]
+            }
+          ]
         },
         "storageProfile": {
           "imageReference": {
@@ -626,7 +548,28 @@
         "osProfile": {
           "computerName": "DC2",
           "adminUsername": "[parameters('vmAdminUsername')]",
-          "adminPassword": "[parameters('vmAdminPassword')]"
+          "adminPassword": "[parameters('vmAdminPassword')]",
+          "secrets": [
+            {
+              "sourceVault": {
+                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', variables('vaultName'))]"
+              },
+              "vaultCertificates": [
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "My"
+                },
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "Root"
+                },
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "CA"
+                }
+              ]
+            }
+          ]
         },
         "storageProfile": {
           "imageReference": {
@@ -725,7 +668,28 @@
         "osProfile": {
           "computerName": "USDC1",
           "adminUsername": "[parameters('vmAdminUsername')]",
-          "adminPassword": "[parameters('vmAdminPassword')]"
+          "adminPassword": "[parameters('vmAdminPassword')]",
+          "secrets": [
+            {
+              "sourceVault": {
+                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', variables('vaultName'))]"
+              },
+              "vaultCertificates": [
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "My"
+                },
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "Root"
+                },
+                {
+                  "certificateUrl": "[parameters('certificateUrl')]",
+                  "certificateStore": "CA"
+                }
+              ]
+            }
+          ]
         },
         "storageProfile": {
           "imageReference": {
@@ -785,7 +749,8 @@
               "sasToken": "[parameters('_artifactsLocationSasToken')]",
               "configurationFunction": "[variables('USDC1DSCConfFunction')]",
               "Properties": {
-                "DomainName": "[parameters('vmDomainName')]",
+                // Domain name is us.contoso.com, is in the DSC configuration
+                //"DomainName": "[parameters('vmDomainName')]",
                 "AdminCreds": {
                   "UserName": "[parameters('vmAdminUserName')]",
                   "Password": "PrivateSettingsRef:AdminPassword"
@@ -832,7 +797,7 @@
           "secrets": [
             {
               "sourceVault": {
-                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', variables('vaultName'))]"
               },
               "vaultCertificates": [
                 {
@@ -956,7 +921,7 @@
           "secrets": [
             {
               "sourceVault": {
-                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+                "id": "[resourceId(parameters('vaultResourceGroup'), 'Microsoft.KeyVault/vaults', variables('vaultName'))]"
               },
               "vaultCertificates": [
                 {
@@ -1167,8 +1132,7 @@
           "DNSServers": {
             "value": [
               "[variables('DC1PrivateIPAddress')]",
-              "10.0.0.50",
-              "10.0.0.51"
+              "10.0.0.50"
             ]
           }
         }
@@ -1195,40 +1159,8 @@
           "DNSServers": {
             "value": [
               "[variables('DC1PrivateIPAddress')]",
-              "[variables('DC2PrivateIPAddress')]",
-              "[variables('USDC1PrivateIPAddress')]"
+              "[variables('DC2PrivateIPAddress')]"
             ]
-          }
-        }
-      }
-    },
-    // Add All DNS Servers for Vnetb
-    {
-      "name": "dpAddvNetbDNS",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2015-01-01",
-      "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('DC1vmName'), '/extensions/vmdscDC1')]"
-      ],
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "[variables('dpSetvNetDNS')]",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "Deployment": {
-            "value": "[variables('Deployment')]"
-          },
-          "DNSServers": {
-            "value": [
-              "[variables('USDC1PrivateIPAddress')]",
-              "[variables('DC2PrivateIPAddress')]",
-              "[variables('DC1PrivateIPAddress')]"
-            ]
-          },
-          "vNet": {
-            "value": "-b"
           }
         }
       }
@@ -1241,6 +1173,10 @@
     },
     "DC2-fqdn": {
       "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('DC2PublicIPName')), '2016-07-01').dnsSettings.fqdn]",
+      "type": "string"
+    },
+    "USDC1-fqdn": {
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',variables('USDC1PublicIPName')), '2016-07-01').dnsSettings.fqdn]",
       "type": "string"
     },
     "MS1-fqdn": {

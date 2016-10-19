@@ -16,10 +16,7 @@
     }
   },
   "variables": {
-    // Network
-
     "vNetPrefix-a": "10.0.0.0/16",
-    "vNetPrefix-b": "10.1.0.0/16",
 
     // 3 Subnets - use the same subnet names in both VNets (a and b)
     "snFrontEnd-ab": "[concat('sn', parameters('Deployment'),'-FE')]",
@@ -30,11 +27,6 @@
     "snFrontEnd-a-Prefix": "10.0.0.0/24",
     "snMidTier-a-Prefix": "10.0.1.0/24",
     "snBackEnd-a-Prefix": "10.0.2.0/24",
-
-    // Networkb (3 subnets for vnetb)
-    "snFrontEnd-b-Prefix": "10.1.0.0/24",
-    "snMidTier-b-Prefix": "10.1.1.0/24",
-    "snBackEnd-b-Prefix": "10.1.2.0/24",
 
     "VnetID": "[resourceId('Microsoft.Network/virtualNetworks', concat('vn',parameters('Deployment'),parameters('vNet')))]",
     "SubnetRef": "[concat(variables('VnetID'), '/subnets/', variables('snFrontEnd-ab'))]"
@@ -82,7 +74,10 @@
             }
           }
         ]
-      }
+      },
+      "resources": [
+        
+      ]
     }
   ]
 }

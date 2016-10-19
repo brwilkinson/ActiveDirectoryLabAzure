@@ -13,12 +13,9 @@ Import-DscResource -ModuleName xActiveDirectory
 Import-DscResource -ModuleName xStorage
 Import-DscResource -ModuleName xPendingReboot
 
-
-[PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("$DomainName\$(($AdminCreds.UserName -split '\\')[-1])", $AdminCreds.Password)
-
 Node $AllNodes.NodeName
 {
-    Write-Verbose -Message $Nodename -Verbose
+    Write-Verbose -Message "NodeName: $Nodename" -Verbose
 
 	LocalConfigurationManager
     {
@@ -49,8 +46,18 @@ Node $AllNodes.NodeName
 
     $parts = $DomainName -split '\.'
     $Netbios = $parts[0]
+    $parentNetbios = $parts[-2]
     $parent = $parts[-2] + '.' + $parts[-1]
+    [PSCredential]$DomainCreds = [PSCredential]::new( "$Netbios\$(($AdminCreds.UserName -split '\\')[-1])", $AdminCreds.Password )
+    [PSCredential]$ForestCreds = [PSCredential]::new( "$parentNetbios\$(($AdminCreds.UserName -split '\\')[-1])", $AdminCreds.Password )
 
+    Write-Verbose -Message "DomainName is: $DomainName"
+    Write-Verbose -Message "Netbios is: $Netbios"
+    Write-Verbose -Message "ParentNetbios is: $parentNetbios"
+    Write-Verbose -Message "Parent is: $parent"
+    Write-Verbose -Message "ForestCreds is: $($ForestCreds.UserName)"
+    Write-Verbose -Message "DomainCreds is: $($DomainCreds.UserName)"
+    Write-Verbose -Message "AdminCreds is: $($AdminCreds.Username)"
 
     xWaitForADDomain $parent
     {
@@ -58,20 +65,20 @@ Node $AllNodes.NodeName
         DomainName = $parent
         RetryCount = $RetryCount
 		RetryIntervalSec = $RetryIntervalSec
-        DomainUserCredential = $AdminCreds
+        DomainUserCredential = $ForestCreds
     }
 
     xADDomain USDC1
 	{
 		DependsOn    = "[xWaitForADDomain]$parent"
-		DomainName   = $Netbios
+		DomainName   = $DomainName
 		DatabasePath = 'F:\NTDS'
         LogPath      = 'F:\NTDS'
         SysvolPath   = 'F:\SYSVOL'
         DomainAdministratorCredential = $DomainCreds
-        SafemodeAdministratorPassword = $DomainCreds
-		PsDscRunAsCredential = $DomainCreds
-        ParentDomainName = $parent
+        SafemodeAdministratorPassword = $AdminCreds
+		PsDscRunAsCredential = $ForestCreds
+        ParentDomainName = $parentNetbios
         DomainNetbiosName = $Netbios
 	}
 
