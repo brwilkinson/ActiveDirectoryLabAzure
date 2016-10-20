@@ -25,6 +25,7 @@
   <Import Condition=" Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets') " Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Deployment\1.1\DeploymentProject.targets" />
   <!-- vertag<:>end -->
   <ItemGroup>
+    <Content Include="CustomScripts\scriptDelay.ps1" />
     <None Include="Deployment.targets">
       <Visible>False</Visible>
     </None>
@@ -36,6 +37,11 @@
     <Content Include="DSC\vmdscMSXConfiguration.ps1" />
     <Content Include="DSC\vmdscMTXConfiguration.ps1" />
     <Content Include="DSC\vmdscUSDC1Configuration.ps1" />
+    <Content Include="DSC\vmDSCDC1.ps1" />
+    <Content Include="DSC\vmDSCDC2.ps1" />
+    <Content Include="DSC\vmDSCUSDC1.ps1" />
+    <Content Include="DSC\vmDSCMTx.ps1" />
+    <Content Include="DSC\vmDSCMSx.ps1" />
     <None Include="Templates\dpSetvNetDNS2.json" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />

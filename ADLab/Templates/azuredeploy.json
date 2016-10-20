@@ -113,7 +113,7 @@
     "vaultName": "[concat('kvcontoso', resourceGroup().location)]",
 
     // SubDeployments
-    "dpSetvNetDNS": "https://raw.githubusercontent.com/brwilkinson/Azure/master/dpSetvNetDNS.json",
+    "dpSetvNetDNS": "https://raw.githubusercontent.com/brwilkinson/Azure/master/dpSetvNetDNS2.json",
 
     // Network -------------------------------------------------------------------------------------
     "vNetPrefix-a": "10.0.0.0/16",
@@ -152,7 +152,6 @@
     "DC1PublicDNSName": "[toLower(concat(variables('Domain'),variables('DC1vmName')))]",
     "DC1PublicIPName": "PublicIP_vmDC1",
     "DC1PrivateIPAddress": "10.0.0.10",
-    "DC1DSCConfFunction": "vmdscDC1Configuration.ps1\\Main",
 
     // DC2
     "DC2vmName": "[concat('vm', variables('Deployment'),'DC2')]",
@@ -162,7 +161,6 @@
     "DC2PublicDNSName": "[toLower(concat(variables('Domain'),variables('DC2vmName')))]",
     "DC2PublicIPName": "PublicIP_vmDC2",
     "DC2PrivateIPAddress": "10.0.0.11",
-    "DC2DSCConfFunction": "vmdscDC2Configuration.ps1\\Main",
 
     // USDC1
     "USDC1vmName": "[concat('vm', variables('Deployment'),'USDC1')]",
@@ -172,13 +170,15 @@
     "USDC1PublicDNSName": "[toLower(concat(variables('Domain'),variables('USDC1vmName')))]",
     "USDC1PublicIPName": "PublicIP_vmUSDC1",
     "USDC1PrivateIPAddress": "10.0.0.12",
-    "USDC1DSCConfFunction": "vmdscUSDC1Configuration.ps1\\Main",
-
-    // MSX
-    "MSXDSCConfFunction": "vmdscMSXConfiguration.ps1\\Main",
-
-    // MTX
-    "MTXDSCConfFunction": "vmdscMTXConfiguration.ps1\\Main"
+     
+    // DSC Extensions
+      "vmDSCDC1FileName": "vmDSCDC1",
+      "vmDSCDC2FileName": "vmDSCDC2",
+      "vmDSCUSDC1FileName": "vmDSCUSDC1",
+      "vmDSCMTxFileName": "vmDSCMTx",
+      "vmDSCMSxFileName": "vmDSCMSx",
+      "scriptDelayScriptFolder": "CustomScripts",
+      "scriptDelayScriptFileName": "scriptDelay.ps1"
   },
   "resources": [
     {
@@ -488,27 +488,53 @@
       },
       "resources": [
         {
-          "name": "vmdscDC1",
+          "name": "ScriptDelay",
           "type": "extensions",
           "location": "[resourceGroup().location]",
           "apiVersion": "2015-06-15",
           "dependsOn": [
-            "[concat('Microsoft.Compute/virtualMachines/', variables('DC1vmName'))]"
+            "[resourceId('Microsoft.Compute/virtualMachines', variables('DC1vmName'))]"
           ],
           "tags": {
-            "displayName": "vmdscDC1",
-            "Environment": "parameters('Environment')"
+            "displayName": "scriptDelay"
+          },
+          "properties": {
+            "publisher": "Microsoft.Compute",
+            "type": "CustomScriptExtension",
+            "typeHandlerVersion": "1.4",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "fileUris": [
+                "[concat(parameters('_artifactsLocation'), '/', variables('scriptDelayScriptFolder'), '/', variables('scriptDelayScriptFileName'), parameters('_artifactsLocationSasToken'))]"
+              ],
+              "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('scriptDelayScriptFolder'), '/', variables('scriptDelayScriptFileName'))]"
+            }
+          }
+        },
+        {
+          "name": "Microsoft.Powershell.DSC",
+          "type": "extensions",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2015-06-15",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', variables('DC1vmName'))]"
+          ],
+          "tags": {
+            "displayName": "vmDSCDC1"
           },
           "properties": {
             "publisher": "Microsoft.Powershell",
             "type": "DSC",
-            "typeHandlerVersion": "2.19",
-            "autoUpgradeMinorVersion": "true",
+            "typeHandlerVersion": "2.9",
+            "autoUpgradeMinorVersion": true,
+            "forceUpdateTag": "1.0",
             "settings": {
-              "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
-              "sasToken": "[parameters('_artifactsLocationSasToken')]",
-              "configurationFunction": "[variables('DC1DSCConfFunction')]",
-              "Properties": {
+              "configuration": {
+                "url": "[concat(parameters('_artifactsLocation'), '/DSC/', variables('vmDSCDC1FileName'), '.zip')]",
+                "script": "[concat(variables('vmDSCDC1FileName'), '.ps1')]",
+                "function": "Main"
+              },
+              "configurationArguments": {
                 "DomainName": "[parameters('vmDomainName')]",
                 "AdminCreds": {
                   "UserName": "[parameters('vmAdminUserName')]",
@@ -517,13 +543,49 @@
               }
             },
             "protectedSettings": {
-              "Items": {
-                "AdminPassword": "[parameters('vmAdminPassword')]"
-              },
-              "DataBlobUri": "[variables('ConfigData')]"
+              "configurationUrlSasToken": "[parameters('_artifactsLocationSasToken')]",
+              "AdminPassword": "[parameters('vmAdminPassword')]"
             }
           }
         }
+        //{
+        //  "name": "vmdscDC1",
+        //  "type": "extensions",
+        //  "location": "[resourceGroup().location]",
+        //  "apiVersion": "2015-06-15",
+        //  "dependsOn": [
+        //    "[concat('Microsoft.Compute/virtualMachines/', variables('DC1vmName'))]"
+        //  ],
+        //  "tags": {
+        //    "displayName": "vmdscDC1",
+        //    "Environment": "parameters('Environment')"
+        //  },
+        //  "properties": {
+        //    "publisher": "Microsoft.Powershell",
+        //    "type": "DSC",
+        //    "typeHandlerVersion": "2.19",
+        //    "autoUpgradeMinorVersion": "true",
+        //    "settings": {
+
+        //      "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
+        //      "sasToken": "[parameters('_artifactsLocationSasToken')]",
+        //      "configurationFunction": "[variables('DC1DSCConfFunction')]",
+        //      "Properties": {
+        //        "DomainName": "[parameters('vmDomainName')]",
+        //        "AdminCreds": {
+        //          "UserName": "[parameters('vmAdminUserName')]",
+        //          "Password": "PrivateSettingsRef:AdminPassword"
+        //        }
+        //      }
+        //    },
+        //    "protectedSettings": {
+        //      "Items": {
+        //        "AdminPassword": "[parameters('vmAdminPassword')]"
+        //      },
+        //      "DataBlobUri": "[variables('ConfigData')]"
+        //    }
+        //  }
+        //}
       ]
     },
     // DC2 VM
@@ -608,42 +670,79 @@
         }
       },
       "resources": [
-        {
-          "name": "vmdscDC2",
-          "type": "extensions",
-          "location": "[resourceGroup().location]",
-          "apiVersion": "2015-06-15",
-          "dependsOn": [
-            "[concat('Microsoft.Compute/virtualMachines/', variables('DC2vmName'))]"
-          ],
-          "tags": {
-            "displayName": "vmdscDC2"
-          },
-          "properties": {
-            "publisher": "Microsoft.Powershell",
-            "type": "DSC",
-            "typeHandlerVersion": "2.19",
-            "autoUpgradeMinorVersion": "true",
-            "settings": {
-              "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
-              "sasToken": "[parameters('_artifactsLocationSasToken')]",
-              "configurationFunction": "[variables('DC2DSCConfFunction')]",
-              "Properties": {
-                "DomainName": "[parameters('vmDomainName')]",
-                "AdminCreds": {
-                  "UserName": "[parameters('vmAdminUserName')]",
-                  "Password": "PrivateSettingsRef:AdminPassword"
-                }
-              }
-            },
-            "protectedSettings": {
-              "Items": {
-                "AdminPassword": "[parameters('vmAdminPassword')]"
+          {
+              "name": "Microsoft.Powershell.DSC",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2015-06-15",
+              "dependsOn": [
+                  "[resourceId('Microsoft.Compute/virtualMachines', variables('DC2vmName'))]"
+              ],
+              "tags": {
+                  "displayName": "vmDSCDC2"
               },
-              "DataBlobUri": "[variables('ConfigData')]"
+            "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.9",
+              "autoUpgradeMinorVersion": true,
+              "forceUpdateTag": "1.0",
+              "settings": {
+                "configuration": {
+                  "url": "[concat(parameters('_artifactsLocation'), '/DSC/', variables('vmDSCDC2FileName'), '.zip')]",
+                  "script": "[concat(variables('vmDSCDC2FileName'), '.ps1')]",
+                  "function": "Main"
+                },
+                "configurationArguments": {
+                  "DomainName": "[parameters('vmDomainName')]",
+                  "AdminCreds": {
+                    "UserName": "[parameters('vmAdminUserName')]",
+                    "Password": "PrivateSettingsRef:AdminPassword"
+                  }
+                }
+              },
+              "protectedSettings": {
+                "configurationUrlSasToken": "[parameters('_artifactsLocationSasToken')]",
+                "AdminPassword": "[parameters('vmAdminPassword')]"
+              }
             }
           }
-        }
+        //{
+        //  "name": "vmdscDC2",
+        //  "type": "extensions",
+        //  "location": "[resourceGroup().location]",
+        //  "apiVersion": "2015-06-15",
+        //  "dependsOn": [
+        //    "[concat('Microsoft.Compute/virtualMachines/', variables('DC2vmName'))]"
+        //  ],
+        //  "tags": {
+        //    "displayName": "vmdscDC2"
+        //  },
+        //  "properties": {
+        //    "publisher": "Microsoft.Powershell",
+        //    "type": "DSC",
+        //    "typeHandlerVersion": "2.19",
+        //    "autoUpgradeMinorVersion": "true",
+        //    "settings": {
+        //      "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
+        //      "sasToken": "[parameters('_artifactsLocationSasToken')]",
+        //      "configurationFunction": "[variables('DC2DSCConfFunction')]",
+        //      "Properties": {
+        //        "DomainName": "[parameters('vmDomainName')]",
+        //        "AdminCreds": {
+        //          "UserName": "[parameters('vmAdminUserName')]",
+        //          "Password": "PrivateSettingsRef:AdminPassword"
+        //        }
+        //      }
+        //    },
+        //    "protectedSettings": {
+        //      "Items": {
+        //        "AdminPassword": "[parameters('vmAdminPassword')]"
+        //      },
+        //      "DataBlobUri": "[variables('ConfigData')]"
+        //    }
+        //  }
+        //}
       ]
     },
     // USDC1 VM
@@ -728,43 +827,80 @@
         }
       },
       "resources": [
-        {
-          "name": "vmdscUSDC1",
-          "type": "extensions",
-          "location": "[resourceGroup().location]",
-          "apiVersion": "2015-06-15",
-          "dependsOn": [
-            "[concat('Microsoft.Compute/virtualMachines/', variables('USDC1vmName'))]"
-          ],
-          "tags": {
-            "displayName": "vmdscUSDC1"
-          },
-          "properties": {
-            "publisher": "Microsoft.Powershell",
-            "type": "DSC",
-            "typeHandlerVersion": "2.19",
-            "autoUpgradeMinorVersion": "true",
-            "settings": {
-              "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
-              "sasToken": "[parameters('_artifactsLocationSasToken')]",
-              "configurationFunction": "[variables('USDC1DSCConfFunction')]",
-              "Properties": {
-                // Domain name is us.contoso.com, is in the DSC configuration
-                //"DomainName": "[parameters('vmDomainName')]",
-                "AdminCreds": {
-                  "UserName": "[parameters('vmAdminUserName')]",
-                  "Password": "PrivateSettingsRef:AdminPassword"
-                }
-              }
-            },
-            "protectedSettings": {
-              "Items": {
-                "AdminPassword": "[parameters('vmAdminPassword')]"
+          {
+              "name": "Microsoft.Powershell.DSC",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2015-06-15",
+              "dependsOn": [
+                  "[resourceId('Microsoft.Compute/virtualMachines', variables('USDC1vmName'))]"
+              ],
+              "tags": {
+                  "displayName": "vmDSCUSDC1"
               },
-              "DataBlobUri": "[variables('ConfigData')]"
+            "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.9",
+              "autoUpgradeMinorVersion": true,
+              "forceUpdateTag": "1.0",
+              "settings": {
+                "configuration": {
+                  "url": "[concat(parameters('_artifactsLocation'), '/DSC/', variables('vmDSCUSDC1FileName'), '.zip')]",
+                  "script": "[concat(variables('vmDSCUSDC1FileName'), '.ps1')]",
+                  "function": "Main"
+                },
+                "configurationArguments": {
+                  "DomainName": "[parameters('vmDomainName')]",
+                  "AdminCreds": {
+                    "UserName": "[parameters('vmAdminUserName')]",
+                    "Password": "PrivateSettingsRef:AdminPassword"
+                  }
+                }
+              },
+              "protectedSettings": {
+                "configurationUrlSasToken": "[parameters('_artifactsLocationSasToken')]",
+                "AdminPassword": "[parameters('vmAdminPassword')]"
+              }
             }
           }
-        }
+        //{
+        //  "name": "vmdscUSDC1",
+        //  "type": "extensions",
+        //  "location": "[resourceGroup().location]",
+        //  "apiVersion": "2015-06-15",
+        //  "dependsOn": [
+        //    "[concat('Microsoft.Compute/virtualMachines/', variables('USDC1vmName'))]"
+        //  ],
+        //  "tags": {
+        //    "displayName": "vmdscUSDC1"
+        //  },
+        //  "properties": {
+        //    "publisher": "Microsoft.Powershell",
+        //    "type": "DSC",
+        //    "typeHandlerVersion": "2.19",
+        //    "autoUpgradeMinorVersion": "true",
+        //    "settings": {
+        //      "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
+        //      "sasToken": "[parameters('_artifactsLocationSasToken')]",
+        //      "configurationFunction": "[variables('USDC1DSCConfFunction')]",
+        //      "Properties": {
+        //        // Domain name is us.contoso.com, is in the DSC configuration
+        //        //"DomainName": "[parameters('vmDomainName')]",
+        //        "AdminCreds": {
+        //          "UserName": "[parameters('vmAdminUserName')]",
+        //          "Password": "PrivateSettingsRef:AdminPassword"
+        //        }
+        //      }
+        //    },
+        //    "protectedSettings": {
+        //      "Items": {
+        //        "AdminPassword": "[parameters('vmAdminPassword')]"
+        //      },
+        //      "DataBlobUri": "[variables('ConfigData')]"
+        //    }
+        //  }
+        //}
       ]
     },
     // MidTier VM Loop
@@ -853,42 +989,79 @@
         }
       },
       "resources": [
-        {
-          "name": "vmdscMTX",
-          "type": "extensions",
-          "location": "[resourceGroup().location]",
-          "apiVersion": "2015-06-15",
-          "dependsOn": [
-            "[concat('Microsoft.Compute/virtualMachines/', concat('vm', variables('Deployment'), 'MT' ,copyIndex(1)))]"
-          ],
-          "tags": {
-            "displayName": "vmdscMTx"
-          },
-          "properties": {
-            "publisher": "Microsoft.Powershell",
-            "type": "DSC",
-            "typeHandlerVersion": "2.19",
-            "autoUpgradeMinorVersion": "true",
-            "settings": {
-              "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
-              "sasToken": "[parameters('_artifactsLocationSasToken')]",
-              "configurationFunction": "[variables('MTXDSCConfFunction')]",
-              "Properties": {
-                "DomainName": "[parameters('vmDomainName')]",
-                "AdminCreds": {
-                  "UserName": "[parameters('vmAdminUserName')]",
-                  "Password": "PrivateSettingsRef:AdminPassword"
-                }
-              }
-            },
-            "protectedSettings": {
-              "Items": {
-                "AdminPassword": "[parameters('vmAdminPassword')]"
+          {
+              "name": "Microsoft.Powershell.DSC",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2015-06-15",
+              "dependsOn": [
+                  "[resourceId('Microsoft.Compute/virtualMachines', concat('vm', variables('Deployment'), 'MT' ,copyIndex(1)))]"
+              ],
+              "tags": {
+                  "displayName": "vmDSCMTx"
               },
-              "DataBlobUri": "[variables('ConfigData')]"
+            "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.9",
+              "autoUpgradeMinorVersion": true,
+              "forceUpdateTag": "1.0",
+              "settings": {
+                "configuration": {
+                  "url": "[concat(parameters('_artifactsLocation'), '/DSC/', variables('vmDSCMTxFileName'), '.zip')]",
+                  "script": "[concat(variables('vmDSCMTxFileName'), '.ps1')]",
+                  "function": "Main"
+                },
+                "configurationArguments": {
+                  "DomainName": "[parameters('vmDomainName')]",
+                  "AdminCreds": {
+                    "UserName": "[parameters('vmAdminUserName')]",
+                    "Password": "PrivateSettingsRef:AdminPassword"
+                  }
+                }
+              },
+              "protectedSettings": {
+                "configurationUrlSasToken": "[parameters('_artifactsLocationSasToken')]",
+                "AdminPassword": "[parameters('vmAdminPassword')]"
+              }
             }
           }
-        }
+        //{
+        //  "name": "vmdscMTX",
+        //  "type": "extensions",
+        //  "location": "[resourceGroup().location]",
+        //  "apiVersion": "2015-06-15",
+        //  "dependsOn": [
+        //    "[concat('Microsoft.Compute/virtualMachines/', concat('vm', variables('Deployment'), 'MT' ,copyIndex(1)))]"
+        //  ],
+        //  "tags": {
+        //    "displayName": "vmdscMTx"
+        //  },
+        //  "properties": {
+        //    "publisher": "Microsoft.Powershell",
+        //    "type": "DSC",
+        //    "typeHandlerVersion": "2.19",
+        //    "autoUpgradeMinorVersion": "true",
+        //    "settings": {
+        //      "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
+        //      "sasToken": "[parameters('_artifactsLocationSasToken')]",
+        //      "configurationFunction": "[variables('MTXDSCConfFunction')]",
+        //      "Properties": {
+        //        "DomainName": "[parameters('vmDomainName')]",
+        //        "AdminCreds": {
+        //          "UserName": "[parameters('vmAdminUserName')]",
+        //          "Password": "PrivateSettingsRef:AdminPassword"
+        //        }
+        //      }
+        //    },
+        //    "protectedSettings": {
+        //      "Items": {
+        //        "AdminPassword": "[parameters('vmAdminPassword')]"
+        //      },
+        //      "DataBlobUri": "[variables('ConfigData')]"
+        //    }
+        //  }
+        //}
       ]
     },
     // MS VM Loop
@@ -978,42 +1151,79 @@
         }
       },
       "resources": [
-        {
-          "name": "vmdscMSx",
-          "type": "extensions",
-          "location": "[resourceGroup().location]",
-          "apiVersion": "2015-06-15",
-          "dependsOn": [
-            "[concat('Microsoft.Compute/virtualMachines/', concat('vm', variables('Deployment'), 'MS' ,copyIndex(1)))]"
-          ],
-          "tags": {
-            "displayName": "vmdscMSx"
-          },
-          "properties": {
-            "publisher": "Microsoft.Powershell",
-            "type": "DSC",
-            "typeHandlerVersion": "2.19",
-            "autoUpgradeMinorVersion": "true",
-            "settings": {
-              "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
-              "sasToken": "[parameters('_artifactsLocationSasToken')]",
-              "configurationFunction": "[variables('MSXDSCConfFunction')]",
-              "Properties": {
-                "DomainName": "[parameters('vmDomainName')]",
-                "AdminCreds": {
-                  "UserName": "[parameters('vmAdminUserName')]",
-                  "Password": "PrivateSettingsRef:AdminPassword"
-                }
-              }
-            },
-            "protectedSettings": {
-              "Items": {
-                "AdminPassword": "[parameters('vmAdminPassword')]"
+          {
+              "name": "Microsoft.Powershell.DSC",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2015-06-15",
+              "dependsOn": [
+                  "[resourceId('Microsoft.Compute/virtualMachines', concat('vm', variables('Deployment'), 'MS' ,copyIndex(1)))]"
+              ],
+              "tags": {
+                  "displayName": "vmDSCMSx"
               },
-              "DataBlobUri": "[variables('ConfigData')]"
+            "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.9",
+              "autoUpgradeMinorVersion": true,
+              "forceUpdateTag": "1.0",
+              "settings": {
+                "configuration": {
+                  "url": "[concat(parameters('_artifactsLocation'), '/DSC/', variables('vmDSCMSxFileName'), '.zip')]",
+                  "script": "[concat(variables('vmDSCMSxFileName'), '.ps1')]",
+                  "function": "Main"
+                },
+                "configurationArguments": {
+                  "DomainName": "[parameters('vmDomainName')]",
+                  "AdminCreds": {
+                    "UserName": "[parameters('vmAdminUserName')]",
+                    "Password": "PrivateSettingsRef:AdminPassword"
+                  }
+                }
+              },
+              "protectedSettings": {
+                "configurationUrlSasToken": "[parameters('_artifactsLocationSasToken')]",
+                "AdminPassword": "[parameters('vmAdminPassword')]"
+              }
             }
           }
-        }
+        //{
+        //  "name": "vmdscMSx",
+        //  "type": "extensions",
+        //  "location": "[resourceGroup().location]",
+        //  "apiVersion": "2015-06-15",
+        //  "dependsOn": [
+        //    "[concat('Microsoft.Compute/virtualMachines/', concat('vm', variables('Deployment'), 'MS' ,copyIndex(1)))]"
+        //  ],
+        //  "tags": {
+        //    "displayName": "vmdscMSx"
+        //  },
+        //  "properties": {
+        //    "publisher": "Microsoft.Powershell",
+        //    "type": "DSC",
+        //    "typeHandlerVersion": "2.19",
+        //    "autoUpgradeMinorVersion": "true",
+        //    "settings": {
+        //      "modulesUrl": "[concat(parameters('_artifactsLocation'), '/', 'dsc.zip')]",
+        //      "sasToken": "[parameters('_artifactsLocationSasToken')]",
+        //      "configurationFunction": "[variables('MSXDSCConfFunction')]",
+        //      "Properties": {
+        //        "DomainName": "[parameters('vmDomainName')]",
+        //        "AdminCreds": {
+        //          "UserName": "[parameters('vmAdminUserName')]",
+        //          "Password": "PrivateSettingsRef:AdminPassword"
+        //        }
+        //      }
+        //    },
+        //    "protectedSettings": {
+        //      "Items": {
+        //        "AdminPassword": "[parameters('vmAdminPassword')]"
+        //      },
+        //      "DataBlobUri": "[variables('ConfigData')]"
+        //    }
+        //  }
+        //}
       ]
     },
     // DC1 Public IP
@@ -1117,7 +1327,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2015-01-01",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('DC1vmName'), '/extensions/vmdscDC1')]"
+        "[concat('Microsoft.Compute/virtualMachines/', variables('DC1vmName'), '/extensions/scriptDelay')]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -1132,7 +1342,8 @@
           "DNSServers": {
             "value": [
               "[variables('DC1PrivateIPAddress')]",
-              "10.0.0.50"
+              "10.0.0.50",
+              "10.0.0.51"
             ]
           }
         }
@@ -1144,7 +1355,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2015-01-01",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachines/', variables('DC2vmName'), '/extensions/vmdscDC2')]"
+        "[concat('Microsoft.Compute/virtualMachines/', variables('DC2vmName'), '/extensions/Microsoft.Powershell.DSC')]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -1159,7 +1370,8 @@
           "DNSServers": {
             "value": [
               "[variables('DC1PrivateIPAddress')]",
-              "[variables('DC2PrivateIPAddress')]"
+              "[variables('DC2PrivateIPAddress')]",
+              "[variables('USDC1PrivateIPAddress')]"
             ]
           }
         }
